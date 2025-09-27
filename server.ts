@@ -1,39 +1,37 @@
-import express from 'express'
-import mongoose from 'mongoose'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import path from 'path'
-import authRoutes from './routes/auth'
-import playersRoutes from './routes/players'
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import cors from "cors";
 
-dotenv.config()
-if (!process.env.MONGO_URI) {
-  dotenv.config({ path: path.resolve(__dirname, '.env') })
-}
-if (!process.env.MONGO_URI) {
-  dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') })
-}
+import superAdminRoutes from "./routes/superadmin";
 
-const app = express()
-app.use(cors())
-app.use(express.json())
+dotenv.config();
 
-const mongoUri = process.env.MONGO_URI
-if (!mongoUri) {
-  console.error('MONGO_URI is missing. Set it in server/.env')
-  process.exit(1)
-}
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || "";
 
-const dbName = process.env.DB_NAME
-mongoose.connect(mongoUri, dbName ? { dbName } : undefined)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch((err: any) => {
-    console.error('❌ Mongo Error:', err?.message || err)
-    process.exit(1)
+// ===== Middleware =====
+app.use(cors());                 // כדי לאפשר בקשות מה-Client
+app.use(express.json());         // קריאת body כ-JSON
+
+// ===== Routes =====
+app.use("/api/superadmin", superAdminRoutes);
+
+// בדיקת חיים (Health check)
+app.get("/", (_req, res) => {
+  res.json({ ok: true, service: "GoalHub API" });
+});
+
+// ===== MongoDB Connection =====
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log("✅ MongoDB connected");
+    // הפעלת השרת רק אחרי שהחיבור למסד נתונים הצליח
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
-
-app.get('/', (_req, res) => res.json({ ok: true, service: 'GoalHub API' }))
-app.use('/api/auth', authRoutes)
-app.use('/api/players', playersRoutes)
-
-app.listen(4000, () => console.log('🚀 API running on http://localhost:4000'))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+    process.exit(1);
+  });
